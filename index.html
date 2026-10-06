@@ -1,1 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador javac e Swing</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<header class="topo">
+  <div>
+    <h1>Da compilação à janela: <span>simulador javac + Swing</span></h1>
+    <p>Aula 7 · Programação visual de interfaces gráficas · Prof. Marcelo Silva Pereira</p>
+  </div>
+  <div class="acoes">
+    <label class="lento"><input type="checkbox" id="modoLento"> Passo a passo lento</label>
+    <button class="btn btn-secundario" id="btnReiniciar">↺ Reiniciar</button>
+    <button class="btn btn-primario" id="btnExecutar">▶ Compilar e executar</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- 1. Pipeline -->
+  <section class="cartao pipeline">
+    <h2><span class="num">1</span> A rotina do Java: do <code>.java</code> até a JVM</h2>
+    <div class="fases">
+      <div class="fase" id="f1"><span class="icone">📝</span><strong>1. Edição</strong><small>Main.java escrito no editor</small></div>
+      <div class="fase" id="f2"><span class="icone">⚙️</span><strong>2. Compilação</strong><small>javac gera o bytecode</small></div>
+      <div class="fase" id="f3"><span class="icone">📦</span><strong>3. Carregamento</strong><small>Class Loader leva à memória</small></div>
+      <div class="fase" id="f4"><span class="icone">🛡️</span><strong>4. Verificação</strong><small>Bytecode Verifier checa segurança</small></div>
+      <div class="fase" id="f5"><span class="icone">⚡</span><strong>5. Execução</strong><small>JVM + JIT rodam o programa</small></div>
+    </div>
+    <div class="terminal" id="terminal"><span class="info">Terminal pronto. Clique em “▶ Compilar e executar”.</span></div>
+  </section>
+
+  <!-- 2. Palco -->
+  <div class="palco">
+
+    <div class="coluna">
+      <section class="cartao ide">
+        <div class="ide-aba"><span>📄 <b>Main.java</b></span><span id="contaLinhas"></span></div>
+        <div class="codigo" id="codigo"></div>
+      </section>
+    </div>
+
+    <div class="coluna">
+      <section class="cartao explica" id="explica">
+        <div class="rotulo">O que está acontecendo agora</div>
+        <p id="textoExplica">O programa ainda não foi compilado. O código ao lado é Java real: roda no seu computador com <code>javac Main.java</code> e <code>java Main</code>.</p>
+      </section>
+
+      <section class="cartao">
+        <h2><span class="num">2</span> A janela (JFrame)</h2>
+        <div class="desktop" id="desktop">
+          <div class="vazio" id="semJanela"><span class="grande">🖥️</span>Nenhuma janela aberta.<br>Compile e execute para a JVM criar o <b>JFrame</b>.</div>
+
+          <div class="janela oculto" id="janela">
+            <div class="titulo">
+              <span>Sistema Acadêmico - POO</span>
+              <div class="botoes"><span>—</span><span>☐</span><span class="fechar" id="btnFecharJanela" title="Fechar (EXIT_ON_CLOSE)">✕</span></div>
+            </div>
+            <div class="menubar">
+              <span class="menu-topo" id="menuNavegar">Navegar</span>
+              <div class="dropdown oculto" id="dropdown">
+                <button id="itemLogin">Tela de Login</button>
+                <button id="itemCadastro">Cadastro de Alunos</button>
+                <hr>
+                <button id="itemSair">Sair</button>
+              </div>
+            </div>
+            <div class="conteudo">
+              <div class="card" id="cardLogin">
+                <div class="form-grid">
+                  <label for="campoUsuario">Usuário:</label>
+                  <input class="jtext" id="campoUsuario" type="text" autocomplete="off">
+                  <label for="campoSenha">Senha:</label>
+                  <input class="jtext" id="campoSenha" type="password" autocomplete="off">
+                  <button class="jbutton" id="botaoEntrar">Entrar</button>
+                  <span class="jlabel-status" id="status">&nbsp;</span>
+                </div>
+              </div>
+              <div class="card oculto" id="cardCadastro">
+                <div class="cadastro-topo">
+                  <label for="campoNome">Nome:</label>
+                  <input class="jtext" id="campoNome" type="text" autocomplete="off">
+                  <button class="jbutton" id="botaoAdicionar">Adicionar</button>
+                </div>
+                <div class="jlist" id="lista"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dica oculto" id="dica">Senha do exemplo: <code>java123</code> · Use o menu <b>Navegar</b> para trocar de tela</div>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <h2><span class="num">3</span> O modelo de eventos</h2>
+        <div class="fluxo">
+          <div class="no" id="n1"><b>1. Usuário</b><span id="t1">faz uma ação</span></div>
+          <div class="no" id="n2"><b>2. Componente</b><span id="t2">JButton / JMenuItem</span></div>
+          <div class="no" id="n3"><b>3. Evento</b><span id="t3">ActionEvent</span></div>
+          <div class="no" id="n4"><b>4. Listener</b><span id="t4">actionPerformed(e)</span></div>
+          <div class="no" id="n5"><b>5. Resposta</b><span id="t5">o código reage</span></div>
+        </div>
+        <p class="nota">💡 <code>e -&gt; { ... }</code> é uma <b>lambda</b>: um jeito curto de implementar a interface <code>ActionListener</code> e o seu método <code>actionPerformed(ActionEvent e)</code>. O listener só funciona se for <b>registrado</b> no componente com <code>addActionListener</code>.</p>
+      </section>
+
+      <section class="cartao">
+        <h2><span class="num">4</span> Console (System.out)</h2>
+        <div class="console" id="console"><span class="sistema">Aguardando execução...</span></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script type="text/plain" id="fonteJava">
+import javax.swing.*;
+import java.awt.*;
+
+public class Main extends JFrame {
+
+    private CardLayout navegador = new CardLayout();
+    private JPanel telas = new JPanel(navegador);
+    private DefaultListModel<String> alunos = new DefaultListModel<>();
+
+    public Main() {
+        super("Sistema Acadêmico - POO");
+        setSize(420, 320);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        setJMenuBar(criarMenu());
+        telas.add(criarTelaLogin(), "LOGIN");
+        telas.add(criarTelaCadastro(), "CADASTRO");
+        add(telas);
+    }
+
+    private JMenuBar criarMenu() {
+        JMenuBar barra = new JMenuBar();
+        JMenu menuNavegar = new JMenu("Navegar");
+        JMenuItem itemLogin = new JMenuItem("Tela de Login");
+        JMenuItem itemCadastro = new JMenuItem("Cadastro de Alunos");
+        JMenuItem itemSair = new JMenuItem("Sair");
+
+        itemLogin.addActionListener(e -> navegador.show(telas, "LOGIN"));
+        itemCadastro.addActionListener(e -> navegador.show(telas, "CADASTRO"));
+        itemSair.addActionListener(e -> System.exit(0));
+
+        menuNavegar.add(itemLogin);
+        menuNavegar.add(itemCadastro);
+        menuNavegar.addSeparator();
+        menuNavegar.add(itemSair);
+        barra.add(menuNavegar);
+        return barra;
+    }
+
+    private JPanel criarTelaLogin() {
+        JPanel formulario = new JPanel(new GridLayout(3, 2, 8, 8));
+        formulario.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        JTextField campoUsuario = new JTextField();
+        JPasswordField campoSenha = new JPasswordField();
+        JButton botaoEntrar = new JButton("Entrar");
+        JLabel status = new JLabel(" ");
+
+        botaoEntrar.addActionListener(e -> {
+            String senha = new String(campoSenha.getPassword());
+            if (senha.equals("java123")) {
+                System.out.println("Login OK: " + campoUsuario.getText());
+                navegador.show(telas, "CADASTRO");
+            } else {
+                status.setText("Senha inválida!");
+                System.out.println("Falha no login");
+            }
+        });
+
+        formulario.add(new JLabel("Usuário:"));
+        formulario.add(campoUsuario);
+        formulario.add(new JLabel("Senha:"));
+        formulario.add(campoSenha);
+        formulario.add(botaoEntrar);
+        formulario.add(status);
+
+        JPanel painel = new JPanel(new BorderLayout());
+        painel.add(formulario, BorderLayout.NORTH);
+        return painel;
+    }
+
+    private JPanel criarTelaCadastro() {
+        JPanel painel = new JPanel(new BorderLayout(8, 8));
+        painel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        JTextField campoNome = new JTextField();
+        JButton botaoAdicionar = new JButton("Adicionar");
+        JList<String> lista = new JList<>(alunos);
+
+        botaoAdicionar.addActionListener(e -> {
+            String nome = campoNome.getText().trim();
+            if (!nome.isEmpty()) {
+                alunos.addElement(nome);
+                System.out.println("Aluno cadastrado: " + nome + " | Total: " + alunos.size());
+                campoNome.setText("");
+            }
+        });
+
+        JPanel topo = new JPanel(new BorderLayout(8, 8));
+        topo.add(new JLabel("Nome:"), BorderLayout.WEST);
+        topo.add(campoNome, BorderLayout.CENTER);
+        topo.add(botaoAdicionar, BorderLayout.EAST);
+
+        painel.add(topo, BorderLayout.NORTH);
+        painel.add(new JScrollPane(lista), BorderLayout.CENTER);
+        return painel;
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new Main().setVisible(true));
+    }
+}
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Código-fonte e renderização ---------- */
+  const fonte = document.getElementById("fonteJava").textContent.replace(/^\n/, "").replace(/\s+$/, "");
+  const linhas = fonte.split("\n");
+  const areaCodigo = document.getElementById("codigo");
+  document.getElementById("contaLinhas").textContent = linhas.length + " linhas";
+
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const TOKEN = /(\/\/.*$)|("(?:[^"\\]|\\.)*")|\b(import|public|private|class|extends|new|return|if|else|static|void|super|null|true|false)\b|\b([A-Z][A-Za-z0-9_]*)\b|\b(\d+)\b/g;
+
+  function colorir(linha) {
+    let html = "", ultimo = 0, m;
+    TOKEN.lastIndex = 0;
+    while ((m = TOKEN.exec(linha)) !== null) {
+      html += esc(linha.slice(ultimo, m.index));
+      const cls = m[1] ? "com" : m[2] ? "str" : m[3] ? "kw" : m[4] ? "tp" : "num";
+      html += '<span class="' + cls + '">' + esc(m[0]) + "</span>";
+      ultimo = TOKEN.lastIndex;
+    }
+    return html + esc(linha.slice(ultimo));
+  }
+
+  areaCodigo.innerHTML = linhas.map((l, i) =>
+    '<div class="linha" id="L' + (i + 1) + '"><span class="n">' + (i + 1) + "</span><span>" + (colorir(l) || " ") + "</span></div>"
+  ).join("");
+
+  /* Localiza linhas pelo texto (não depende de números fixos) */
+  function L(trecho, aPartirDe) {
+    for (let i = (aPartirDe || 1) - 1; i < linhas.length; i++) {
+      if (linhas[i].includes(trecho)) return i + 1;
+    }
+    throw new Error("Trecho não encontrado: " + trecho);
+  }
+  function fimDoBloco(inicio, fechamento) {
+    return L(fechamento, inicio + 1);
+  }
+  function faixa(a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }
+
+  const MET = {
+    main: L("public static void main"),
+    construtor: L("public Main()"),
+    menu: L("private JMenuBar criarMenu()"),
+    login: L("private JPanel criarTelaLogin()"),
+    cadastro: L("private JPanel criarTelaCadastro()")
+  };
+  const blocoMetodo = (ini) => faixa(ini, fimDoBloco(ini, "    }"));
+  const blocoLambda = (ini) => faixa(ini, fimDoBloco(ini, "        });"));
+
+  /* ---------- Destaque de linhas ---------- */
+  let faixaAtual = [], ativasAtuais = [];
+  function limparDestaques() {
+    faixaAtual.forEach((n) => document.getElementById("L" + n).classList.remove("faixa"));
+    ativasAtuais.forEach((n) => document.getElementById("L" + n).classList.remove("ativa"));
+    faixaAtual = []; ativasAtuais = [];
+  }
+  function destacar(ativas, fundo) {
+    limparDestaques();
+    (fundo || []).forEach((n) => document.getElementById("L" + n).classList.add("faixa"));
+    ativas.forEach((n) => document.getElementById("L" + n).classList.add("ativa"));
+    faixaAtual = fundo || []; ativasAtuais = ativas;
+    if (ativas.length) {
+      const el = document.getElementById("L" + ativas[0]);
+      const alvo = el.offsetTop - areaCodigo.clientHeight / 3;
+      areaCodigo.scrollTo({ top: Math.max(0, alvo), behavior: "smooth" });
+    }
+  }
+
+  /* ---------- Controle de tempo / fila de ações ---------- */
+  let execucao = 0;                 // muda a cada reinício (cancela animações)
+  let fila = Promise.resolve();
+  const lento = document.getElementById("modoLento");
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms * (lento.checked ? 2.2 : 1)));
+  const CANCELADO = "cancelado";
+
+  function enfileirar(tarefa) {
+    const id = execucao;
+    fila = fila.then(() => (id === execucao ? tarefa(id) : null)).catch((e) => { if (e !== CANCELADO) console.error(e); });
+    return fila;
+  }
+  function checar(id) { if (id !== execucao) throw CANCELADO; }
+
+  async function passo(id, ativas, explicacao, ms, fundo) {
+    checar(id);
+    destacar(ativas, fundo);
+    explicar(explicacao);
+    await esperar(ms || 1100);
+    checar(id);
+  }
+
+  const textoExplica = document.getElementById("textoExplica");
+  function explicar(html) { textoExplica.innerHTML = html; }
+
+  /* ---------- Terminal e console ---------- */
+  const terminal = document.getElementById("terminal");
+  function term(html) { terminal.insertAdjacentHTML("beforeend", "<div>" + html + "</div>"); terminal.scrollTop = terminal.scrollHeight; }
+
+  const consoleEl = document.getElementById("console");
+  function sysout(texto, sistema) {
+    const d = document.createElement("div");
+    d.className = (sistema ? "sistema" : "saida") + " novo";
+    d.textContent = texto;
+    consoleEl.appendChild(d);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  /* ---------- Fluxo do evento ---------- */
+  const nos = [1, 2, 3, 4, 5].map((i) => document.getElementById("n" + i));
+  const PADRAO_FLUXO = ["faz uma ação", "JButton / JMenuItem", "ActionEvent", "actionPerformed(e)", "o código reage"];
+  function resetFluxo() {
+    nos.forEach((n, i) => { n.classList.remove("aceso"); document.getElementById("t" + (i + 1)).textContent = PADRAO_FLUXO[i]; });
+  }
+  async function animarFluxo(id, textos) {
+    resetFluxo();
+    for (let i = 0; i < 5; i++) {
+      checar(id);
+      document.getElementById("t" + (i + 1)).textContent = textos[i];
+      nos[i].classList.add("aceso");
+      await esperar(260);
+    }
+  }
+
+  /* ---------- Elementos da janela ---------- */
+  const $ = (id) => document.getElementById(id);
+  const janela = $("janela"), semJanela = $("semJanela"), dica = $("dica");
+  const dropdown = $("dropdown"), menuNavegar = $("menuNavegar");
+  const cardLogin = $("cardLogin"), cardCadastro = $("cardCadastro");
+  const lista = $("lista"), statusLbl = $("status");
+  const btnExecutar = $("btnExecutar");
+  let rodando = false;
+
+  function mostrarCard(nome) {
+    cardLogin.classList.toggle("oculto", nome !== "LOGIN");
+    cardCadastro.classList.toggle("oculto", nome !== "CADASTRO");
+  }
+  function fecharMenu() { dropdown.classList.add("oculto"); menuNavegar.classList.remove("aberto"); }
+  function pulsar(btn) { btn.classList.remove("pulsar"); void btn.offsetWidth; btn.classList.add("pulsar"); }
+
+  /* ---------- 1) Compilar e executar ---------- */
+  async function compilarEExecutar(id) {
+    rodando = true;
+    btnExecutar.disabled = true;
+    terminal.innerHTML = "";
+    consoleEl.innerHTML = "";
+    const fases = [1, 2, 3, 4, 5].map((i) => $("f" + i));
+    fases.forEach((f) => f.classList.remove("ativa", "feita"));
+
+    async function fase(i, fn) {
+      checar(id);
+      fases[i].classList.add("ativa");
+      await fn();
+      await esperar(750);
+      checar(id);
+      fases[i].classList.remove("ativa");
+      fases[i].classList.add("feita");
+    }
+
+    await fase(0, async () => {
+      destacar(faixa(1, linhas.length));
+      explicar("<b>Edição.</b> O programador escreve o código-fonte no editor e salva o arquivo <code>Main.java</code>. O nome do arquivo precisa ser igual ao nome da classe pública.");
+      term('<span class="info">Arquivo salvo:</span> <span class="arquivo">Main.java</span> (' + linhas.length + " linhas)");
+    });
+    await fase(1, async () => {
+      destacar([]);
+      explicar("<b>Compilação.</b> O <code>javac</code> lê o código, confere a sintaxe e os tipos e gera o <b>bytecode</b>. Se houver erro, o processo para aqui e nada é executado.");
+      term('<span class="cmd">$ javac Main.java</span>');
+      await esperar(500);
+      term('<span class="ok">✔ Compilado sem erros →</span> <span class="arquivo">Main.class</span> <span class="info">(bytecode: não é código de máquina!)</span>');
+    });
+    await fase(2, async () => {
+      explicar("<b>Carregamento.</b> O comando <code>java Main</code> inicia a JVM. O <b>Class Loader</b> coloca na memória o <code>Main.class</code> e as classes da biblioteca que ele usa (<code>javax.swing</code>, <code>java.awt</code>).");
+      term('<span class="cmd">$ java Main</span>');
+      await esperar(400);
+      term('<span class="info">Class Loader:</span> Main.class, javax.swing.JFrame, java.awt.CardLayout ...');
+    });
+    await fase(3, async () => {
+      explicar("<b>Verificação.</b> O <b>Bytecode Verifier</b> confere se o bytecode é válido e seguro antes de deixar rodar. Isso protege o sistema contra código corrompido ou malicioso.");
+      term('<span class="ok">Bytecode Verifier: OK ✔</span>');
+    });
+    await fase(4, async () => {
+      explicar("<b>Execução.</b> A JVM interpreta o bytecode, e o compilador <b>JIT</b> transforma os trechos mais usados em código de máquina durante a execução. Agora acompanhe o código linha a linha.");
+      term('<span class="info">JVM:</span> procurando o método <b>main</b>...');
+    });
+
+    /* Rastreamento do código */
+    const ctor = blocoMetodo(MET.construtor);
+    await passo(id, [MET.main], "A JVM começa <b>sempre</b> pelo método <code>main</code>. É o ponto de partida de todo programa Java.", 1300, blocoMetodo(MET.main));
+    await passo(id, [L("SwingUtilities.invokeLater")], "<code>invokeLater</code> agenda a criação da janela na <b>thread de eventos</b> do Swing (EDT). É a regra de ouro: tudo que é visual roda nessa thread.", 1500, blocoMetodo(MET.main));
+    await passo(id, [MET.construtor], "<code>new Main()</code> chama o <b>construtor</b>. Como <code>Main extends JFrame</code>, nossa classe <b>é uma</b> janela (herança!).", 1300, ctor);
+    await passo(id, [L('super("Sistema')], "<code>super(...)</code> chama o construtor da superclasse <code>JFrame</code> e define o título da janela.", 1200, ctor);
+    await passo(id, [L("setSize(")], "<code>setSize(420, 320)</code> define a largura e a altura da janela em pixels.", 1000, ctor);
+    await passo(id, [L("setDefaultCloseOperation")], "<code>EXIT_ON_CLOSE</code>: quando o usuário clicar no ✕, o programa termina.", 1100, ctor);
+    await passo(id, [L("setJMenuBar(criarMenu())")], "Hora de montar a barra de menus. O fluxo <b>entra</b> no método <code>criarMenu()</code>...", 1000, ctor);
+    await passo(id, faixa(MET.menu + 1, MET.menu + 5), "Cria a <code>JMenuBar</code> (barra), o <code>JMenu</code> “Navegar” e três <code>JMenuItem</code>. Cada um é um <b>objeto</b>.", 1500, blocoMetodo(MET.menu));
+    await passo(id, faixa(L("itemLogin.addActionListener"), L("itemSair.addActionListener")), "<b>Registro dos listeners.</b> Cada item recebe o código que vai rodar <b>quando for clicado</b>. Nada executa agora: só fica “combinado”.", 1900, blocoMetodo(MET.menu));
+    await passo(id, faixa(L("menuNavegar.add(itemLogin)"), L("return barra;")), "Os itens entram no menu, o menu entra na barra, e a barra é <b>retornada</b> para o construtor.", 1300, blocoMetodo(MET.menu));
+    await passo(id, [L('telas.add(criarTelaLogin(), "LOGIN")')], "Agora a primeira tela: o fluxo entra em <code>criarTelaLogin()</code>.", 1000, ctor);
+    await passo(id, faixa(MET.login + 1, L('new JLabel(" ")')), "Cria o painel com <code>GridLayout</code> (grade de 3×2) e os componentes: campos de texto, senha, botão e rótulo.", 1500, blocoMetodo(MET.login));
+    await passo(id, blocoLambda(L("botaoEntrar.addActionListener")), "Registra o listener do botão <b>Entrar</b>. O bloco em laranja só vai rodar quando alguém clicar.", 1700, blocoMetodo(MET.login));
+    await passo(id, [L('telas.add(criarTelaCadastro(), "CADASTRO")')], "Segunda tela: <code>criarTelaCadastro()</code>, com a mesma lógica (componentes + listener).", 1100, ctor);
+    await passo(id, blocoLambda(L("botaoAdicionar.addActionListener")), "Listener do botão <b>Adicionar</b>: vai inserir o nome no <code>DefaultListModel</code>, e a <code>JList</code> se atualiza sozinha.", 1500, blocoMetodo(MET.cadastro));
+    await passo(id, [L("add(telas);")], "O painel <code>telas</code> usa <code>CardLayout</code>: várias telas empilhadas, e só uma aparece por vez. É assim que faremos a <b>navegação</b>.", 1400, ctor);
+    await passo(id, [L("setVisible(true)")], "<code>setVisible(true)</code>: a janela finalmente aparece na tela!", 900, blocoMetodo(MET.main));
+
+    checar(id);
+    semJanela.classList.add("oculto");
+    janela.classList.remove("oculto");
+    dica.classList.remove("oculto");
+    mostrarCard("LOGIN");
+    sysout("[JVM] Programa em execução. Aguardando eventos...", true);
+    destacar([]);
+    btnExecutar.disabled = false;
+    explicar("A janela está aberta e o programa está <b>esperando eventos</b>. Ele não segue mais uma sequência fixa: quem decide o que roda agora é o <b>usuário</b>. Isso é a <b>programação orientada a eventos</b>. Experimente digitar e clicar!");
+    rodando = false;
+  }
+
+  /* ---------- 2) Eventos da janela ---------- */
+  function evento(tarefa) {
+    if (rodando) return;
+    enfileirar(tarefa);
+  }
+
+  menuNavegar.addEventListener("click", () => {
+    const abrir = dropdown.classList.contains("oculto");
+    dropdown.classList.toggle("oculto", !abrir);
+    menuNavegar.classList.toggle("aberto", abrir);
+    if (abrir && !rodando) {
+      explicar("Abrir o <code>JMenu</code> é comportamento <b>interno</b> do Swing: não precisamos programar isso. O nosso código só entra em ação quando um <code>JMenuItem</code> for clicado.");
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".menubar")) fecharMenu();
+  });
+
+  function navegar(item, rotulo, card) {
+    fecharMenu();
+    evento(async (id) => {
+      const linha = L(item + ".addActionListener");
+      await animarFluxo(id, ["clica no menu", 'JMenuItem "' + rotulo + '"', "ActionEvent", "lambda de " + item, 'navegador.show("' + card + '")']);
+      await passo(id, [linha], "O <code>JMenuItem</code> gerou um <code>ActionEvent</code>, e o listener registrado nele executa <code>navegador.show(telas, \"" + card + "\")</code>.", 1300, blocoMetodo(MET.menu));
+      mostrarCard(card);
+      explicar("O <code>CardLayout</code> trocou a tela visível para <b>" + card + "</b>. É assim que se faz <b>navegação entre telas</b> dentro de um único <code>JFrame</code>.");
+    });
+  }
+  $("itemLogin").addEventListener("click", () => navegar("itemLogin", "Tela de Login", "LOGIN"));
+  $("itemCadastro").addEventListener("click", () => navegar("itemCadastro", "Cadastro de Alunos", "CADASTRO"));
+
+  function encerrar(id, motivo) {
+    janela.classList.add("oculto");
+    dica.classList.add("oculto");
+    semJanela.classList.remove("oculto");
+    sysout("Process finished with exit code 0", true);
+    explicar(motivo + " A JVM encerrou o programa e liberou a memória. Clique em <b>▶ Compilar e executar</b> para rodar de novo.");
+    btnExecutar.disabled = false;
+    execucao++; // impede eventos pendentes
+  }
+
+  $("itemSair").addEventListener("click", () => {
+    fecharMenu();
+    evento(async (id) => {
+      await animarFluxo(id, ["clica em Sair", 'JMenuItem "Sair"', "ActionEvent", "lambda de itemSair", "System.exit(0)"]);
+      await passo(id, [L("itemSair.addActionListener")], "<code>System.exit(0)</code> encerra a JVM. O <b>0</b> significa “terminou sem erro”.", 1400, blocoMetodo(MET.menu));
+      encerrar(id, "O item <b>Sair</b> chamou <code>System.exit(0)</code>.");
+    });
+  });
+
+  $("btnFecharJanela").addEventListener("click", () => {
+    evento(async (id) => {
+      await animarFluxo(id, ["clica no ✕", "JFrame", "WindowEvent", "EXIT_ON_CLOSE", "encerra o programa"]);
+      await passo(id, [L("setDefaultCloseOperation")], "Fechar a janela gera um <code>WindowEvent</code>. Como configuramos <code>EXIT_ON_CLOSE</code> no construtor, o programa termina.", 1500, blocoMetodo(MET.construtor));
+      encerrar(id, "A janela foi fechada no ✕.");
+    });
+  });
+
+  $("botaoEntrar").addEventListener("click", (ev) => {
+    pulsar(ev.currentTarget);
+    const usuario = $("campoUsuario").value;
+    const senha = $("campoSenha").value;
+    evento(async (id) => {
+      const ini = L("botaoEntrar.addActionListener");
+      const bloco = blocoLambda(ini);
+      const ok = senha === "java123";
+      await animarFluxo(id, ['clica em "Entrar"', 'JButton "Entrar"', "ActionEvent", "lambda do botaoEntrar", ok ? "login aceito" : "login recusado"]);
+      await passo(id, [ini], "O clique gerou um <code>ActionEvent</code>. O Java chama o listener registrado no <code>botaoEntrar</code>.", 1100, bloco);
+      await passo(id, [L("String senha = new String", ini)], "Lê a senha do <code>JPasswordField</code>. <code>getPassword()</code> devolve um <code>char[]</code>, que convertemos em <code>String</code>.", 1300, bloco);
+      await passo(id, [L('if (senha.equals("java123"))', ini)], "Compara com <code>equals</code> (conteúdo), <b>não</b> com <code>==</code> (endereço de memória). Lembra da Aula 3? Resultado: <b>" + (ok ? "true" : "false") + "</b>.", 1500, bloco);
+      if (ok) {
+        await passo(id, [L('System.out.println("Login OK', ini)], "Condição verdadeira: imprime no console...", 900, bloco);
+        sysout("Login OK: " + usuario);
+        statusLbl.innerHTML = "&nbsp;";
+        await passo(id, [L('navegador.show(telas, "CADASTRO");', ini)], "...e navega para a tela de cadastro.", 1000, bloco);
+        mostrarCard("CADASTRO");
+        explicar("Login aceito e tela trocada. Repare: o <b>mesmo</b> clique pode ter resultados diferentes, dependendo dos dados. O listener tem lógica (<code>if/else</code>) como qualquer método.");
+      } else {
+        await passo(id, [L('status.setText("Senha inválida!")', ini)], "Condição falsa: entra no <code>else</code> e muda o texto do <code>JLabel</code> de status.", 1100, bloco);
+        statusLbl.textContent = "Senha inválida!";
+        await passo(id, [L('System.out.println("Falha no login")', ini)], "E registra a falha no console.", 900, bloco);
+        sysout("Falha no login");
+        explicar("Senha recusada. O componente <code>JLabel</code> foi alterado <b>pelo código</b>, e a tela se atualizou. (Dica: a senha do exemplo é <code>java123</code>.)");
+      }
+      destacar([]);
+    });
+  });
+
+  $("botaoAdicionar").addEventListener("click", (ev) => {
+    pulsar(ev.currentTarget);
+    const campo = $("campoNome");
+    const nome = campo.value.trim();
+    evento(async (id) => {
+      const ini = L("botaoAdicionar.addActionListener");
+      const bloco = blocoLambda(ini);
+      await animarFluxo(id, ['clica em "Adicionar"', 'JButton "Adicionar"', "ActionEvent", "lambda do botaoAdicionar", nome ? 'adiciona "' + nome + '"' : "nada (nome vazio)"]);
+      await passo(id, [ini], "Novo <code>ActionEvent</code>, agora vindo do botão <b>Adicionar</b>.", 1000, bloco);
+      await passo(id, [L("String nome = campoNome.getText().trim()", ini)], "<code>getText()</code> lê o que foi digitado, e <code>trim()</code> remove espaços das pontas.", 1200, bloco);
+      await passo(id, [L("if (!nome.isEmpty())", ini)], "Validação: só cadastra se o nome <b>não</b> estiver vazio. Resultado: <b>" + (nome ? "true" : "false") + "</b>.", 1300, bloco);
+      if (!nome) {
+        explicar("O <code>if</code> bloqueou o cadastro, porque o campo estava vazio. Validar a entrada do usuário é obrigação de toda interface gráfica.");
+        destacar([]);
+        return;
+      }
+      await passo(id, [L("alunos.addElement(nome)", ini)], "<code>addElement</code> insere o nome no <b>modelo</b> (<code>DefaultListModel</code>). A <code>JList</code> “observa” o modelo e se redesenha sozinha.", 1300, bloco);
+      const d = document.createElement("div");
+      d.textContent = nome; d.className = "novo";
+      lista.appendChild(d);
+      await passo(id, [L('System.out.println("Aluno cadastrado', ini)], "Mostra o total com <code>alunos.size()</code>.", 900, bloco);
+      sysout("Aluno cadastrado: " + nome + " | Total: " + lista.children.length);
+      await passo(id, [L('campoNome.setText("")', ini)], "Limpa o campo para o próximo cadastro.", 800, bloco);
+      campo.value = "";
+      explicar("Aluno cadastrado! Perceba a separação: o <b>modelo</b> guarda os dados, e a <b>visão</b> (<code>JList</code>) só mostra. É a mesma ideia das camadas da Aula 6.");
+      destacar([]);
+    });
+  });
+
+  /* Enter no campo de nome não dispara o botão no Swing (sem configuração extra) */
+
+  /* ---------- Botões principais ---------- */
+  btnExecutar.addEventListener("click", () => {
+    reiniciar(false);
+    enfileirar(compilarEExecutar);
+  });
+
+  function reiniciar(textoInicial) {
+    execucao++;
+    fila = Promise.resolve();
+    rodando = false;
+    btnExecutar.disabled = false;
+    destacar([]);
+    resetFluxo();
+    [1, 2, 3, 4, 5].forEach((i) => $("f" + i).classList.remove("ativa", "feita"));
+    janela.classList.add("oculto");
+    dica.classList.add("oculto");
+    semJanela.classList.remove("oculto");
+    fecharMenu();
+    mostrarCard("LOGIN");
+    lista.innerHTML = "";
+    statusLbl.innerHTML = "&nbsp;";
+    ["campoUsuario", "campoSenha", "campoNome"].forEach((c) => ($(c).value = ""));
+    if (textoInicial !== false) {
+      terminal.innerHTML = '<span class="info">Terminal pronto. Clique em “▶ Compilar e executar”.</span>';
+      consoleEl.innerHTML = '<span class="sistema">Aguardando execução...</span>';
+      explicar("O programa ainda não foi compilado. O código ao lado é Java real: roda no seu computador com <code>javac Main.java</code> e <code>java Main</code>.");
+      areaCodigo.scrollTo({ top: 0 });
+    }
+  }
+  $("btnReiniciar").addEventListener("click", () => reiniciar(true));
+})();
+</script>
+</body>
+</html>
 
